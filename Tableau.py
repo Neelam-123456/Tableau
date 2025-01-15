@@ -4,18 +4,32 @@ import tableauserverclient as TSC
 # Streamlit App Title
 st.title("Tableau Extract Refresh Utility")
 
-# Input Fields for Tableau Connection Details
-st.sidebar.header("Tableau Server Connection Details")
-server_url = st.sidebar.text_input("Server URL", value="https://prod-apnortheast-a.online.tableau.com/")
-username = st.sidebar.text_input("Username", value="", placeholder="Enter your Tableau username")
-password = st.sidebar.text_input("Password", value="", placeholder="Enter your Tableau password", type="password")
-site_id = st.sidebar.text_input("Site ID", value="mohdsajjadsheikh-8334074aaa", placeholder="Enter the Tableau site ID (leave blank for default site)")
+# Sidebar for General Information
+st.sidebar.header("Instructions")
+st.sidebar.write("""
+- Fill in the Tableau Server details below.
+- Provide the name of the datasource to refresh.
+- Click 'Refresh Extract' to trigger the operation.
+""")
 
-# Input for Datasource Name
-datasource_name = st.text_input("Datasource Name", value="", placeholder="Enter the name of the datasource to refresh")
+# Create a Form for User Inputs
+with st.form("tableau_form"):
+    st.header("Enter Tableau Server Details")
+    
+    # Input Fields for Tableau Server Connection Details
+    server_url = st.text_input("Server URL", value="https://prod-apnortheast-a.online.tableau.com/", help="Enter the Tableau Server or Tableau Online URL.")
+    username = st.text_input("Username", value="", placeholder="Enter your Tableau username", help="Your Tableau username or email address.")
+    password = st.text_input("Password", value="", placeholder="Enter your Tableau password", type="password", help="Your Tableau password.")
+    site_id = st.text_input("Site ID", value="mohdsajjadsheikh-8334074aaa", help="Enter the Tableau Site ID. Leave blank for the default site.")
+    
+    # Input for Datasource Name
+    datasource_name = st.text_input("Datasource Name", value="", placeholder="Enter the datasource name", help="The exact name of the datasource to refresh.")
+    
+    # Submit Button
+    submit_button = st.form_submit_button("Refresh Extract")
 
-# Button to Trigger Refresh
-if st.button("Refresh Extract"):
+# Perform the Extract Refresh When Form is Submitted
+if submit_button:
     if not (server_url and username and password and datasource_name):
         st.error("Please fill in all the required fields.")
     else:
