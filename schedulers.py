@@ -1,127 +1,134 @@
-import streamlit as st
+import argparse
 import logging
 from datetime import time
 import tableauserverclient as TSC
 
+def create_hourly_schedule(server):
+    # Hourly Schedule
+    hourly_interval = TSC.HourlyInterval(start_time=time(2, 30), end_time=time(23, 0), interval_value=2)
+    hourly_schedule = TSC.ScheduleItem(
+        "Hourly-Schedule",
+        50,
+        TSC.ScheduleItem.Type.Extract,
+        TSC.ScheduleItem.ExecutionOrder.Parallel,
+        hourly_interval,
+    )
+    try:
+        hourly_schedule = server.schedules.create(hourly_schedule)
+        print(f"Hourly schedule created (ID: {hourly_schedule.id}).")
+    except Exception as e:
+        print(f"Error creating hourly schedule: {e}")
+
+
+def create_daily_schedule(server):
+    # Daily Schedule
+    daily_interval = TSC.DailyInterval(start_time=time(5))
+    daily_schedule = TSC.ScheduleItem(
+        "Daily-Schedule",
+        60,
+        TSC.ScheduleItem.Type.Subscription,
+        TSC.ScheduleItem.ExecutionOrder.Serial,
+        daily_interval,
+    )
+    try:
+        daily_schedule = server.schedules.create(daily_schedule)
+        print(f"Daily schedule created (ID: {daily_schedule.id}).")
+    except Exception as e:
+        print(f"Error creating daily schedule: {e}")
+
+
+def create_weekly_schedule(server):
+    # Weekly Schedule
+    weekly_interval = TSC.WeeklyInterval(
+        time(19, 15), TSC.IntervalItem.Day.Monday, TSC.IntervalItem.Day.Wednesday, TSC.IntervalItem.Day.Friday
+    )
+    weekly_schedule = TSC.ScheduleItem(
+        "Weekly-Schedule",
+        70,
+        TSC.ScheduleItem.Type.Extract,
+        TSC.ScheduleItem.ExecutionOrder.Serial,
+        weekly_interval,
+    )
+    try:
+        weekly_schedule = server.schedules.create(weekly_schedule)
+        print(f"Weekly schedule created (ID: {weekly_schedule.id}).")
+    except Exception as e:
+        print(f"Error creating weekly schedule: {e}")
+
+
+def create_monthly_schedule(server):
+    # Monthly Schedule
+    monthly_interval = TSC.MonthlyInterval(start_time=time(23, 30), interval_value=15)
+    monthly_schedule = TSC.ScheduleItem(
+        "Monthly-Schedule",
+        80,
+        TSC.ScheduleItem.Type.Subscription,
+        TSC.ScheduleItem.ExecutionOrder.Parallel,
+        monthly_interval,
+    )
+    try:
+        monthly_schedule = server.schedules.create(monthly_schedule)
+        print(f"Monthly schedule created (ID: {monthly_schedule.id}).")
+    except Exception as e:
+        print(f"Error creating monthly schedule: {e}")
+
+
 def main():
-    st.title("Tableau Server Schedule Creator")
+    parser = argparse.ArgumentParser(description="Creates sample schedules for each type of frequency.")
+    # Common options
+    parser.add_argument("--server", "-s", required=True, help="server address")
+    parser.add_argument("--site", "-S", help="site name")
+    parser.add_argument("--token-name", "-p", required=True, help="name of the personal access token used to sign into the server")
+    parser.add_argument("--token-value", "-v", required=True, help="value of the personal access token used to sign into the server")
+    parser.add_argument(
+        "--logging-level",
+        "-l",
+        choices=["debug", "info", "error"],
+        default="error",
+        help="desired logging level (set to error by default)",
+    )
 
-    # Input fields for server and authentication
-    server_address = st.text_input("Server Address", "")
-    site_name = st.text_input("Site Name", "")
-    token_name = st.text_input("Personal Access Token Name", "")
-    token_value = st.text_input("Personal Access Token Value", "", type="password")
+    args = parser.parse_args()
 
-    # Logging level selection
-    logging_level = st.selectbox("Logging Level", ["debug", "info", "error"], index=2)
-    logging.basicConfig(level=getattr(logging, logging_level.upper()))
+    # Set logging level
+    logging_level = getattr(logging, args.logging_level.upper())
+    logging.basicConfig(level=logging_level)
 
-    # Connect to Tableau Server
-    if st.button("Connect to Server"):
-        try:
-            tableau_auth = TSC.PersonalAccessTokenAuth(token_name, token_value, site_id=site_name)
-            server = TSC.Server(server_address, use_server_version=False)
-            server.add_http_options({"verify": False})
-            server.use_server_version()
-            with server.auth.sign_in(tableau_auth):
-                st.success("Connected to Tableau Server!")
-        except Exception as e:
-            st.error(f"Error connecting to Tableau Server: {e}")
-            return
+    tableau_auth = TSC.PersonalAccessTokenAuth(args.token_name, args.token_value, site_id=args.site)
+    server = TSC.Server(args.server, use_server_version=False)
+    server.add_http_options({"verify": False})
+    server.use_server_version()
 
-        # Schedule creation options
-        st.header("Create Schedules")
+    with server.auth.sign_in(tableau_auth):
+        print("\nScheduler Creation Menu")
+        print("1. Create Hourly Schedule")
+        print("2. Create Daily Schedule")
+        print("3. Create Weekly Schedule")
+        print("4. Create Monthly Schedule")
+        print("5. Create All Schedules")
+        print("6. Exit")
 
-        # Hourly schedule creation
-        if st.checkbox("Create Hourly Schedule"):
-            start_hourly = st.time_input("Start Time for Hourly Schedule", time(2, 30))
-            end_hourly = st.time_input("End Time for Hourly Schedule", time(23, 0))
-            interval_hourly = st.number_input("Interval (hours)", min_value=1, max_value=24, value=2)
+        while True:
+            choice = input("\nEnter your choice (1-6): ")
+            if choice == "1":
+                create_hourly_schedule(server)
+            elif choice == "2":
+                create_daily_schedule(server)
+            elif choice == "3":
+                create_weekly_schedule(server)
+            elif choice == "4":
+                create_monthly_schedule(server)
+            elif choice == "5":
+                create_hourly_schedule(server)
+                create_daily_schedule(server)
+                create_weekly_schedule(server)
+                create_monthly_schedule(server)
+            elif choice == "6":
+                print("Exiting...")
+                break
+            else:
+                print("Invalid choice, please try again.")
 
-            if st.button("Create Hourly Schedule"):
-                hourly_interval = TSC.HourlyInterval(
-                    start_time=start_hourly, end_time=end_hourly, interval_value=interval_hourly
-                )
-                hourly_schedule = TSC.ScheduleItem(
-                    "Hourly-Schedule",
-                    50,
-                    TSC.ScheduleItem.Type.Extract,
-                    TSC.ScheduleItem.ExecutionOrder.Parallel,
-                    hourly_interval,
-                )
-                try:
-                    hourly_schedule = server.schedules.create(hourly_schedule)
-                    st.success(f"Hourly schedule created (ID: {hourly_schedule.id}).")
-                except Exception as e:
-                    st.error(f"Error creating hourly schedule: {e}")
-
-        # Daily schedule creation
-        if st.checkbox("Create Daily Schedule"):
-            start_daily = st.time_input("Start Time for Daily Schedule", time(5, 0))
-
-            if st.button("Create Daily Schedule"):
-                daily_interval = TSC.DailyInterval(start_time=start_daily)
-                daily_schedule = TSC.ScheduleItem(
-                    "Daily-Schedule",
-                    60,
-                    TSC.ScheduleItem.Type.Subscription,
-                    TSC.ScheduleItem.ExecutionOrder.Serial,
-                    daily_interval,
-                )
-                try:
-                    daily_schedule = server.schedules.create(daily_schedule)
-                    st.success(f"Daily schedule created (ID: {daily_schedule.id}).")
-                except Exception as e:
-                    st.error(f"Error creating daily schedule: {e}")
-
-        # Weekly schedule creation
-        if st.checkbox("Create Weekly Schedule"):
-            weekly_days = st.multiselect("Days for Weekly Schedule", [
-                TSC.IntervalItem.Day.Monday,
-                TSC.IntervalItem.Day.Tuesday,
-                TSC.IntervalItem.Day.Wednesday,
-                TSC.IntervalItem.Day.Thursday,
-                TSC.IntervalItem.Day.Friday,
-                TSC.IntervalItem.Day.Saturday,
-                TSC.IntervalItem.Day.Sunday
-            ], default=[TSC.IntervalItem.Day.Monday])
-
-            start_weekly = st.time_input("Start Time for Weekly Schedule", time(19, 15))
-
-            if st.button("Create Weekly Schedule"):
-                weekly_interval = TSC.WeeklyInterval(start_time=start_weekly, *weekly_days)
-                weekly_schedule = TSC.ScheduleItem(
-                    "Weekly-Schedule",
-                    70,
-                    TSC.ScheduleItem.Type.Extract,
-                    TSC.ScheduleItem.ExecutionOrder.Serial,
-                    weekly_interval,
-                )
-                try:
-                    weekly_schedule = server.schedules.create(weekly_schedule)
-                    st.success(f"Weekly schedule created (ID: {weekly_schedule.id}).")
-                except Exception as e:
-                    st.error(f"Error creating weekly schedule: {e}")
-
-        # Monthly schedule creation
-        if st.checkbox("Create Monthly Schedule"):
-            start_monthly = st.time_input("Start Time for Monthly Schedule", time(23, 30))
-            day_of_month = st.number_input("Day of Month", min_value=1, max_value=31, value=15)
-
-            if st.button("Create Monthly Schedule"):
-                monthly_interval = TSC.MonthlyInterval(start_time=start_monthly, interval_value=day_of_month)
-                monthly_schedule = TSC.ScheduleItem(
-                    "Monthly-Schedule",
-                    80,
-                    TSC.ScheduleItem.Type.Subscription,
-                    TSC.ScheduleItem.ExecutionOrder.Parallel,
-                    monthly_interval,
-                )
-                try:
-                    monthly_schedule = server.schedules.create(monthly_schedule)
-                    st.success(f"Monthly schedule created (ID: {monthly_schedule.id}).")
-                except Exception as e:
-                    st.error(f"Error creating monthly schedule: {e}")
 
 if __name__ == "__main__":
     main()
